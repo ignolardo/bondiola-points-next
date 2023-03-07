@@ -1,17 +1,18 @@
 import { useState, useEffect } from "react"
+import { Poppins } from 'next/font/google'
 import { GoogleSpreadsheet } from "google-spreadsheet"
 import { QrReader } from "react-qr-reader";
 
 const doc = new GoogleSpreadsheet('1iu3Qk5y7RBsnPmX6bcALv6nP20eHMT0B8lw-7-LwDm0');
 
+const poppins = Poppins({ subsets: ['latin'], weight: "500" })
+
 module.exports = function Scan() {
     const [isServer, setIsServer] = useState(true)
-    const [sheetName, setSheetName] = useState('');
-    const [names, setNames] = useState([]);
-    const [codes, setCodes] = useState([]);
     const [qrData, setQrData] = useState("");
     const [qrError, setQrError] = useState("");
-    const [videoWeight, setVideoWeight] = useState('10vw');
+    const [videoWeight, setVideoWeight] = useState('88vw');
+    const [maxVideoWeight, setMaxVideoWeight] = useState('350px');
 
     async function SignServiceAccount() {
         await doc.useServiceAccountAuth({
@@ -29,6 +30,91 @@ module.exports = function Scan() {
         SignServiceAccount();
 
     }, [])
+
+
+
+    return <div style={{ width: "100vw", height: '100vh', textAlign: "center", display: "table-cell", verticalAlign: "middle" }}>
+
+
+        <div style={{ margin: '0px auto' }}>
+
+            {qrData == "" && qrError == "" ?
+                <>
+                    <p className={poppins.className} style={{ padding: "20px 0", fontSize: "min(8vw,40px)" }}>Escaneá el código QR</p>
+
+                    <QR setQrData={setQrData} setQrError={setQrError} qrData={qrData} qrError={qrError} videoWeight={videoWeight} maxVideoWeight={maxVideoWeight} />
+                </>
+                :
+                <>
+                    {qrError == '' ?
+
+                        <PointsAdded />
+                        :
+                        <SomeError/>
+                    }
+                </>
+            }
+        </div>
+
+
+    </div>
+}
+
+
+function PointsAdded() {
+    return <>
+
+        <p className={poppins.className} style={{ padding: "20px 0", fontSize: "min(8vw,40px)" }}>Recibiste 10 puntos. Felicidades señor.</p>
+
+    </>
+}
+
+function SomeError() {
+    return <>
+
+        <p className={poppins.className} style={{ padding: "20px 0", fontSize: "min(8vw,40px)" }}>Ocurrió un error, vuelve a intentarlo</p>
+
+    </>
+}
+
+function QR({ setQrData, setQrError, qrData, qrError, videoWeight, maxVideoWeight }) {
+
+    return <div style={{ width: "100vw", textAlign: "center", padding: "10px 0px" }}>
+
+        <div style={{ width: videoWeight, height: videoWeight, maxWidth: maxVideoWeight, maxHeight: maxVideoWeight, margin: "0px auto" }}>
+
+            <QrReader
+                onResult={(result, error) => {
+                    if (!!result) {
+                        setQrData(result?.text);
+                    }
+
+                    if (!!error) {
+                        /* setQrError(error.message); */
+                    }
+
+                }
+                }
+                //this is facing mode : "environment " it will open backcamera of the smartphone and if not found will 
+                // open the front camera
+                constraints={{ facingMode: "environment" }}
+                videoStyle={{ width: "100%", height: "100%", objectFit: "cover" }}
+                videoContainerStyle={{ width: "100%", height: "100%", background: "#222" }}
+                containerStyle={{ width: "100%", height: "100%", background: "#aaa" }}
+            />
+        </div>
+
+        {/* <p style={{ padding: "20px 0" }}>Qr data: {qrData}</p> */}
+
+    </div>
+}
+
+
+function GetSheetData() {
+
+    const [sheetName, setSheetName] = useState('');
+    const [names, setNames] = useState([]);
+    const [codes, setCodes] = useState([]);
 
     async function GetSheetData() {
 
@@ -63,36 +149,8 @@ module.exports = function Scan() {
         setCodes(otherCellJSON.usedCodes);
     }
 
-    return <div>
-        <p>We are gonna start with the scanning</p>
 
-
-        <div>
-
-            <QrReader
-                onResult={(result, error) => {
-                    if (!!result) {
-                        setQrData(result?.text);
-                    }
-
-                    if (!!error) {
-                        setQrError(error.message);
-                    }
-
-                }
-                }
-                //this is facing mode : "environment " it will open backcamera of the smartphone and if not found will 
-                // open the front camera
-                constraints={{ facingMode: "environment" }}
-                videoStyle={{ width:videoWeight, height:videoWeight, objectFit: "cover"}}
-                videoContainerStyle={{ width:videoWeight, height:videoWeight, background: "#555"}}
-                containerStyle={{ width:videoWeight, height:videoWeight, background: "#aaa"}}
-            />
-
-            <p>Qr data: {qrData}</p>
-
-        </div>
-
+    return <div style={{ padding: "10px 0" }}>
 
         <button onClick={GetSheetData}>Get Sheet Data</button>
         <p>Sheet name: {sheetName}</p>
