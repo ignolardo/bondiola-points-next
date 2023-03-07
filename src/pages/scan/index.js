@@ -34,7 +34,7 @@ module.exports = function Scan() {
     }
 
     return <div>
-        <p>We're gonna start with the scanning</p>
+        <p>We are gonna start with the scanning</p>
         <button onClick={GetSheetData}>Get Sheet Data</button>
         <p>Sheet name: {sheetName}</p>
         {/* SHOW USERS */}
