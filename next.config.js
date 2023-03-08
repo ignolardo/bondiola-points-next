@@ -18,6 +18,10 @@ const nextConfig = {
 
     return config;
   },
+  publicRuntimeConfig: {
+    SECRET_PASSWORD:'T4b9B8$*FgFX3D4lS!I6',
+    PRIVATE_KEY:"-----BEGIN RSA PRIVATE KEY-----\nMIIBOQIBAAJBAMqRF3QcOwcdkvo6XekQeJdXECLZV6nXxNrbbKSUa5qmglX+NmGC\nz37AnL+KQpGVlvSh6vQoUy/rrkMPWYi3LIMCAwEAAQJAMj7LEoHuIlWzn13a7XSo\ndOGjnwFKPVbH/YFv8WLfTfyOVnooSzbQHDf1ysS4iOHuFd0t4OIP5ESRDAP0bjvA\nAQIhAOldO8VKmmVV10HIuwPVuAtW6QkI1Yp+XD0qlp+F83rDAiEA3jcdK3YqgQqM\nWOfHIUqRFtT6VdryRI/6cdejDN+860ECIGpQmGdkenyKI/wLV/ACUMuRt67vAGIM\n+TbAjUh1vRwDAiALKYGRmVHxQXJjVOEvzusS1ofsoB7jSsgtx8Ms9mArAQIgIwfa\nmoH41gJRvPL2iuOGqEYAc+lZMguuoLg4eAj90Lk=\n-----END RSA PRIVATE KEY-----\n"
+  },
 }
 
 module.exports = nextConfig

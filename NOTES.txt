@@ -1,1 +1,0 @@
-por alguna razón al obtener la celda de usuarios, convertirla a JSON, obtener array de usuarios y actualizar el state de nombres, cada objeto de usuario se repite 2 veces.

@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react"
+import getConfig from "next/config";
 import { Poppins } from 'next/font/google'
 import { GoogleSpreadsheet } from "google-spreadsheet"
 import { QrReader } from "react-qr-reader";
+import CryptoJS from "crypto-js";
 
 const doc = new GoogleSpreadsheet('1iu3Qk5y7RBsnPmX6bcALv6nP20eHMT0B8lw-7-LwDm0');
 
 const poppins = Poppins({ subsets: ['latin'], weight: "500" })
+
+const { publicRuntimeConfig } = getConfig();
 
 module.exports = function Scan() {
     const [isServer, setIsServer] = useState(true)
@@ -31,8 +35,6 @@ module.exports = function Scan() {
 
     }, [])
 
-
-
     return <div style={{ width: "100vw", height: '100vh', textAlign: "center", display: "table-cell", verticalAlign: "middle" }}>
 
 
@@ -48,12 +50,13 @@ module.exports = function Scan() {
                 <>
                     {qrError == '' ?
 
-                        <PointsAdded />
+                        <EmailInput code={qrData} />
                         :
-                        <SomeError/>
+                        <SomeError message={"Ocurrió un error, vuelve a intentarlo"} />
                     }
                 </>
             }
+            {/* <EmailInput code={'U2FsdGVkX1+sHMOUmJK0wryTKDa+kEGC0Coe+l6V2B0='} /> */}
         </div>
 
 
@@ -64,18 +67,77 @@ module.exports = function Scan() {
 function PointsAdded() {
     return <>
 
-        <p className={poppins.className} style={{ padding: "20px 0", fontSize: "min(8vw,40px)" }}>Recibiste 10 puntos. Felicidades señor.</p>
+        <p className={poppins.className} style={{ padding: "20px 20px", fontSize: "min(8vw,40px)" }}>Recibiste 1 punto. Felicidades señor.</p>
 
     </>
 }
 
-function SomeError() {
+function SomeError({ message }) {
     return <>
 
-        <p className={poppins.className} style={{ padding: "20px 0", fontSize: "min(8vw,40px)" }}>Ocurrió un error, vuelve a intentarlo</p>
+        <p className={poppins.className} style={{ padding: "20px 20px", fontSize: "min(8vw,40px)" }}>{message}</p>
 
     </>
 }
+
+
+function EmailInput({ code }) {
+
+    const [loading, setLoading] = useState(false);
+    const [pointsError, setPointsError] = useState({ error: false, body: <></> });
+    const [pointsAdded, setPointsAdded] = useState(false);
+
+    const handleError = async (error) => {
+        switch (error) {
+            case 'uknown':
+                setPointsError({ error: true, body: <SomeError message={"Ocurrió un error, vuelve a intentarlo"} /> })
+                break;
+            case 'code_used':
+                setPointsError({ error: true, body: <SomeError message={"El código escaneado ya fué usado"} /> })
+                break;
+            case 'code_invalid':
+                setPointsError({ error: true, body: <SomeError message={"El código escaneado es inválido"} /> })
+        }
+    }
+
+    const handleDone = async () => {
+        setPointsAdded(true);
+    }
+
+    // Handles the submit event on form submit.
+    const handleSubmit = async (event) => {
+
+        event.preventDefault();
+        setLoading(true);
+        TryToPut(code, event.target[0].value, handleError, handleDone);
+    }
+
+    return <div>
+
+        {pointsError.error ?
+            pointsError.body
+            :
+            <>
+                {pointsAdded ?
+
+                    <PointsAdded />
+                    :
+
+                    <>
+                        <form onSubmit={handleSubmit}>
+                            <input type="email" name="email" id="userEmail" className={poppins.className} placeholder="Correo electrónico" required style={{ width: "min(85vw,350px)", height: "min(20vw, 50px)", margin: "10px 0", padding: "0 10px", textAlign: "center", fontSize: "min(5vw,20px)" }} />
+                            <button type="submit" className={poppins.className} style={{ width: "min(35vw, 100px)", height: "min(20vw, 50px)", margin: "10px 0", fontSize: "min(7vw,20px)" }}>Enviar</button>
+                        </form>
+                        {loading ? <p className={poppins.className} style={{ margin: "10px 0", fontSize: "min(7vw,20px)" }}>Cargando...</p> : <></>}
+                    </>
+                }
+            </>
+        }
+
+
+    </div>
+}
+
 
 function QR({ setQrData, setQrError, qrData, qrError, videoWeight, maxVideoWeight }) {
 
@@ -108,6 +170,143 @@ function QR({ setQrData, setQrError, qrData, qrError, videoWeight, maxVideoWeigh
 
     </div>
 }
+
+
+async function TryToPut(code, user, handleError, handleDone) {
+
+    const pointSheet = doc.sheetsById[0];
+
+    await pointSheet.loadCells('A1:B1');
+
+    var originalCode = '';
+    try {
+        originalCode = CryptoJS.AES.decrypt(code, publicRuntimeConfig.SECRET_PASSWORD).toString(CryptoJS.enc.Utf8);
+    } catch {
+        handleError('code_invalid')
+        return;
+    }
+
+    if (!(await CodeValid(originalCode))) {
+        handleError('code_invalid');
+        return;
+    }
+
+    var codeUsed = await CodeUsed(originalCode);
+    if (!codeUsed) {
+
+        // Seguir
+        if (await AddCode(originalCode)) {
+            if (await AddPointsToUser(user)) {
+
+                handleDone();
+                return;
+
+            } else {
+                handleError('uknown');
+                return;
+            }
+
+        } else {
+
+            handleError('uknown');
+            return;
+
+        }
+
+    } else {
+        handleError('code_used')
+        return;
+    }
+
+
+}
+
+async function CodeUsed(code) {
+    const pointSheet = doc.sheetsById[0];
+
+    const otherCell = pointSheet.getCell(0, 1);
+    const otherCellJSON = JSON.parse(otherCell.value);
+
+    var response = false;
+
+    for (let i = 0; i < otherCellJSON.usedCodes.length; i++) {
+        if (otherCellJSON.usedCodes[i] == code) {
+            response = true;
+            break;
+        }
+    }
+
+    return response;
+}
+
+async function CodeValid(code) {
+    if (code.charAt(0) == '0' && code.charAt(Math.trunc(code.length / 2)) == '0' && code.charAt(code.length - 1) == '0') {
+        return true;
+    } else {
+        return false;
+    }
+
+}
+
+async function AddPointsToUser(user) {
+    const pointSheet = doc.sheetsById[0];
+
+    const usersCell = pointSheet.getCell(0, 0)
+    const usersCellJSON = JSON.parse(usersCell.value);
+    const otherCell = pointSheet.getCell(0, 1);
+    const otherCellJSON = JSON.parse(otherCell.value);
+
+    var userExists = {
+        exists: false,
+        index: null
+    };
+
+    for (let i = 0; i < usersCellJSON.users.length; i++) {
+        if (usersCellJSON.users[i].user == user) {
+            userExists.exists = true;
+            userExists.index = i;
+            break;
+        }
+    }
+
+    if (userExists.exists) {
+        usersCellJSON.users[userExists.index].points = usersCellJSON.users[userExists.index].points + 1;
+    } else {
+        usersCellJSON.users.push({ "user": user, "points": 1 });
+        otherCellJSON.userLength += 1;
+    }
+
+    usersCell.value = JSON.stringify(usersCellJSON);
+    otherCell.value = JSON.stringify(otherCellJSON);
+
+
+    try {
+        await pointSheet.saveUpdatedCells()
+        return true;
+    } catch
+    {
+        return false;
+    }
+
+}
+
+async function AddCode(code) {
+    const pointSheet = doc.sheetsById[0];
+
+    const otherCell = pointSheet.getCell(0, 1)
+    const otherCellJSON = JSON.parse(otherCell.value);
+
+    try {
+        otherCellJSON.usedCodes.push(code);
+        otherCell.value = JSON.stringify(otherCellJSON);
+        await pointSheet.saveUpdatedCells()
+        return true;
+    } catch
+    {
+        return false;
+    }
+}
+
 
 
 function GetSheetData() {
